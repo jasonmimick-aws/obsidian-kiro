@@ -1,0 +1,59 @@
+.kiro-chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 8px;
+}
+.kiro-status {
+  font-size: 11px;
+  padding: 4px 8px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 8px;
+}
+.kiro-status-connected { color: var(--text-success); }
+.kiro-status-error { color: var(--text-error); }
+.kiro-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+.kiro-msg {
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.kiro-msg-user {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  margin-left: 40px;
+  text-align: right;
+}
+.kiro-msg-assistant {
+  background: var(--background-secondary);
+  margin-right: 40px;
+}
+.kiro-streaming { opacity: 0.8; }
+.kiro-input-row {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+.kiro-input {
+  flex: 1;
+  resize: none;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+.kiro-send-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
