@@ -170,10 +170,6 @@ export class KiroChatView extends ItemView {
       });
     }
 
-    // Build display text showing context
-    const contextNames: string[] = [];
-    for (const note of mentionedNotes) contextNames.push(`@${note.title}`);
-
     // Auto-include active note if enabled and no @mentions
     if (this.plugin.settings.autoIncludeActiveNote && mentionedNotes.length === 0) {
       const activeNote = await this.plugin.readActiveNote();
@@ -186,14 +182,10 @@ export class KiroChatView extends ItemView {
             text: activeNote.content,
           },
         });
-        contextNames.push(`📎 ${activeNote.title}`);
       }
     }
 
-    const displayText = contextNames.length > 0
-      ? `${text}\n\n*Context: ${contextNames.join(", ")}*`
-      : text;
-    this.messages.push({ role: "user", content: displayText });
+    this.messages.push({ role: "user", content: text });
     promptContent.push({ type: "text", text });
 
     this.renderMessages();
