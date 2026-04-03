@@ -32,7 +32,7 @@ export class KiroChatView extends ItemView {
 
   getViewType(): string { return KIRO_VIEW_TYPE; }
   getDisplayText(): string { return "Kiro"; }
-  getIcon(): string { return "bot"; }
+  getIcon(): string { return "kiro-ghost"; }
 
   async onOpen() {
     klog(this.plugin.settings, "ChatView onOpen");
