@@ -79,6 +79,13 @@
 .kiro-msg-assistant {
   background: var(--background-secondary);
   margin-right: 20px;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+.kiro-msg-assistant * {
+  user-select: text;
+  -webkit-user-select: text;
 }
 .kiro-streaming { opacity: 0.8; }
 .kiro-input-row {
