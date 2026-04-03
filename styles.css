@@ -7,56 +7,56 @@
 .kiro-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
+  padding: 8px;
   border-bottom: 1px solid var(--background-modifier-border);
   margin-bottom: 8px;
+  gap: 8px;
 }
 .kiro-brand {
   display: flex;
   align-items: center;
   gap: 6px;
   color: #9046FF;
+  flex-shrink: 0;
 }
-.kiro-brand svg {
-  width: 18px;
-  height: 22px;
-}
+.kiro-brand svg { width: 18px; height: 22px; }
 .kiro-brand-text {
   font-weight: 700;
   font-size: 15px;
   letter-spacing: 0.02em;
 }
+.kiro-status {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex: 1;
+}
+.kiro-status-connected { color: var(--text-success); }
+.kiro-status-error { color: var(--text-error); }
 .kiro-header-btns {
   display: flex;
   gap: 4px;
+  flex-shrink: 0;
 }
 .kiro-header-btn {
   font-size: 11px;
-  padding: 2px 8px;
+  padding: 3px 6px;
   border-radius: 4px;
   cursor: pointer;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
+  white-space: nowrap;
 }
-.kiro-header-btn:hover {
-  background: var(--background-modifier-hover);
-}
-.kiro-status {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-.kiro-status-connected { color: var(--text-success); }
-.kiro-status-error { color: var(--text-error); }
+.kiro-header-btn:hover { background: var(--background-modifier-hover); }
 .kiro-context-bar {
   display: flex;
   align-items: center;
   font-size: 11px;
   color: var(--text-accent);
-  padding: 3px 8px;
+  padding: 4px 10px;
   background: var(--background-secondary);
-  border-radius: 4px;
-  margin-bottom: 4px;
+  border: 1px solid var(--interactive-accent);
+  border-radius: 6px;
+  margin-bottom: 6px;
 }
 .kiro-messages {
   flex: 1;
@@ -78,7 +78,7 @@
 }
 .kiro-msg-assistant {
   background: var(--background-secondary);
-  margin-right: 40px;
+  margin-right: 20px;
 }
 .kiro-streaming { opacity: 0.8; }
 .kiro-input-row {
