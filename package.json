@@ -1,6 +1,6 @@
 {
   "name": "obsidian-kiro",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Use Kiro AI agent inside Obsidian via the Agent Client Protocol (ACP)",
   "main": "main.js",
   "scripts": {

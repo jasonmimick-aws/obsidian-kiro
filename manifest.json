@@ -1,7 +1,7 @@
 {
   "id": "obsidian-kiro",
   "name": "Kiro",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "minAppVersion": "1.5.0",
   "description": "Use Kiro AI agent inside Obsidian via the Agent Client Protocol (ACP). Query Dynatrace, manage AWS, create dashboards — all from your notes.",
   "author": "Jason Mimick",
