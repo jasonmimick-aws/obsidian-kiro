@@ -229,13 +229,13 @@ export class KiroChatView extends ItemView {
       }
     }
 
+    // Add pending images before text so Kiro sees them
+    for (const img of this.pendingImages) {
+      promptContent.push({ type: "image", data: img.data, mimeType: img.mimeType } as Record<string, unknown>);
+    }
+
     this.messages.push({ role: "user", content: text });
     promptContent.push({ type: "text", text });
-
-    // Add pending images
-    for (const img of this.pendingImages) {
-      promptContent.push({ type: "image", data: img.data, mimeType: img.mimeType });
-    }
     const hadImages = this.pendingImages.length > 0;
     if (hadImages) {
       this.messages[this.messages.length - 1].content += ` 🖼️ (${this.pendingImages.length} image${this.pendingImages.length > 1 ? "s" : ""})`;
