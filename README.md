@@ -77,6 +77,10 @@ Obsidian → ACP (JSON-RPC/stdio) → Kiro CLI → MCP → Dynatrace / AWS / etc
 | Auto-include active note | Send the current note as context with every message | On |
 | Debug logging | Verbose ACP logging in developer console (Cmd+Option+I) | Off |
 
+## Acknowledgments
+
+This plugin was inspired by the [Obsidian Agent Client](https://github.com/RAIT-09/obsidian-agent-client) plugin, which pioneered ACP support in Obsidian. We built obsidian-kiro as a standalone implementation focused on the Kiro CLI agent with features like active note context, @mentions, and MCP integration.
+
 ## License
 
 Apache-2.0
