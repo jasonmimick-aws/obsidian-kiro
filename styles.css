@@ -8,9 +8,24 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 8px;
+  padding: 6px 8px;
   border-bottom: 1px solid var(--background-modifier-border);
   margin-bottom: 8px;
+}
+.kiro-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #9046FF;
+}
+.kiro-brand svg {
+  width: 18px;
+  height: 22px;
+}
+.kiro-brand-text {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.02em;
 }
 .kiro-header-btns {
   display: flex;

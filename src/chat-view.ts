@@ -42,6 +42,9 @@ export class KiroChatView extends ItemView {
 
     // Header bar
     const header = container.createDiv({ cls: "kiro-header" });
+    const brand = header.createDiv({ cls: "kiro-brand" });
+    brand.innerHTML = `<svg width="20" height="24" viewBox="0 0 20 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.8 18.57C1.32 24.06 6.6 25.43 10.49 22.22C11.63 25.82 15.93 23.14 17.47 20.34C20.86 14.19 19.49 7.91 19.14 6.62C16.72-2.21 4.67-2.22 2.6 6.66C2.11 8.22 2.1 9.99 1.83 11.82C1.69 12.75 1.59 13.34 1.23 14.31C1.03 14.87.75 15.37.3 16.21C-.39 17.51-.1 20.02 3.46 18.72L3.8 18.57Z" fill="currentColor"/><path d="M10.96 10.44C9.97 10.44 9.82 9.26 9.82 8.55C9.82 7.92 9.94 7.41 10.15 7.09C10.34 6.81 10.62 6.67 10.96 6.67C11.31 6.67 11.6 6.81 11.81 7.1C12.05 7.43 12.18 7.93 12.18 8.55C12.18 9.74 11.72 10.44 10.96 10.44Z" fill="var(--background-primary)"/><path d="M15.03 10.44C14.04 10.44 13.89 9.26 13.89 8.55C13.89 7.92 14.01 7.41 14.22 7.09C14.41 6.81 14.69 6.67 15.03 6.67C15.38 6.67 15.67 6.81 15.88 7.1C16.12 7.43 16.25 7.93 16.25 8.55C16.25 9.74 15.79 10.44 15.03 10.44Z" fill="var(--background-primary)"/></svg>`;
+    brand.createSpan({ cls: "kiro-brand-text", text: "Kiro" });
     this.statusEl = header.createDiv({ cls: "kiro-status" });
     this.statusEl.setText("Starting...");
     const headerBtns = header.createDiv({ cls: "kiro-header-btns" });
