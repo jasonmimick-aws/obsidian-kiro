@@ -106,7 +106,7 @@ export class AcpClient {
     return this.send("initialize", {
       protocolVersion: "2025-01-01",
       clientInfo: { name: "obsidian-kiro", version: "0.2.0" },
-      capabilities: { loadSession: false, promptCapabilities: { image: false } },
+      capabilities: { loadSession: false, promptCapabilities: { image: true } },
     });
   }
 

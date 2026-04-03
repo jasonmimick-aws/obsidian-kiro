@@ -20,6 +20,8 @@ export class KiroChatView extends ItemView {
   private contextEl!: HTMLDivElement;
   private sendBtn!: HTMLButtonElement;
   private cancelBtn!: HTMLButtonElement;
+  private imagePreviewEl!: HTMLDivElement;
+  private pendingImages: Array<{ data: string; mimeType: string }> = [];
   private currentAssistantMsg = "";
   private isStreaming = false;
 
@@ -78,6 +80,9 @@ export class KiroChatView extends ItemView {
         this.sendMessage();
       }
     });
+    this.inputEl.addEventListener("paste", (e) => this.handlePaste(e));
+
+    this.imagePreviewEl = inputRow.createDiv({ cls: "kiro-image-preview" });
 
     await this.connectAgent();
   }
@@ -144,6 +149,45 @@ export class KiroChatView extends ItemView {
     }
   }
 
+  private handlePaste(e: ClipboardEvent) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (!item.type.startsWith("image/")) continue;
+      e.preventDefault();
+      const blob = item.getAsFile();
+      if (!blob) continue;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(",")[1];
+        this.pendingImages.push({ data: base64, mimeType: item.type });
+        this.updateImagePreview();
+        klog(this.plugin.settings, "Image pasted:", item.type, base64.length, "bytes");
+      };
+      reader.readAsDataURL(blob);
+    }
+  }
+
+  private updateImagePreview() {
+    this.imagePreviewEl.empty();
+    if (this.pendingImages.length === 0) {
+      this.imagePreviewEl.style.display = "none";
+      return;
+    }
+    this.imagePreviewEl.style.display = "flex";
+    for (let i = 0; i < this.pendingImages.length; i++) {
+      const wrap = this.imagePreviewEl.createDiv({ cls: "kiro-image-thumb" });
+      const img = wrap.createEl("img", { attr: { src: `data:${this.pendingImages[i].mimeType};base64,${this.pendingImages[i].data}` } });
+      const removeBtn = wrap.createEl("span", { cls: "kiro-image-remove", text: "✕" });
+      const idx = i;
+      removeBtn.addEventListener("click", () => {
+        this.pendingImages.splice(idx, 1);
+        this.updateImagePreview();
+      });
+    }
+  }
+
   private async sendMessage() {
     const text = this.inputEl.value.trim();
     if (!text || this.isStreaming) return;
@@ -187,6 +231,17 @@ export class KiroChatView extends ItemView {
 
     this.messages.push({ role: "user", content: text });
     promptContent.push({ type: "text", text });
+
+    // Add pending images
+    for (const img of this.pendingImages) {
+      promptContent.push({ type: "image", data: img.data, mimeType: img.mimeType });
+    }
+    const hadImages = this.pendingImages.length > 0;
+    if (hadImages) {
+      this.messages[this.messages.length - 1].content += ` 🖼️ (${this.pendingImages.length} image${this.pendingImages.length > 1 ? "s" : ""})`;
+    }
+    this.pendingImages = [];
+    this.updateImagePreview();
 
     this.renderMessages();
 
