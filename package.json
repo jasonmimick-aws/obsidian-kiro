@@ -5,9 +5,16 @@
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "node esbuild.config.mjs production"
+    "build": "node esbuild.config.mjs production",
+    "deploy": "npm run build && cp main.js manifest.json styles.css ~/work/test-vault2/.obsidian/plugins/obsidian-kiro/"
   },
-  "keywords": ["obsidian", "kiro", "acp", "ai", "agent"],
+  "keywords": [
+    "obsidian",
+    "kiro",
+    "acp",
+    "ai",
+    "agent"
+  ],
   "license": "Apache-2.0",
   "devDependencies": {
     "@types/node": "^22.0.0",
