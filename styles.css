@@ -102,3 +102,7 @@
   border-radius: 8px;
   cursor: pointer;
 }
+
+.side-dock-ribbon-action[aria-label="Open Kiro"] svg {
+  color: #9046FF;
+}
