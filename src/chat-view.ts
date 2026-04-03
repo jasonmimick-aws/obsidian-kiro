@@ -21,7 +21,7 @@ export class KiroChatView extends ItemView {
   private sendBtn!: HTMLButtonElement;
   private cancelBtn!: HTMLButtonElement;
   private imagePreviewEl!: HTMLDivElement;
-  private pendingImages: Array<{ data: string; mimeType: string }> = [];
+  private pendingImages: Array<{ data: string; mimeType: string; path: string }> = [];
   private currentAssistantMsg = "";
   private isStreaming = false;
 
@@ -161,9 +161,12 @@ export class KiroChatView extends ItemView {
       reader.onload = () => {
         const result = reader.result as string;
         const base64 = result.split(",")[1];
-        this.pendingImages.push({ data: base64, mimeType: item.type });
+        const ext = item.type.split("/")[1] || "png";
+        const tmpPath = require("path").join(require("os").tmpdir(), `kiro-paste-${Date.now()}.${ext}`);
+        require("fs").writeFileSync(tmpPath, Buffer.from(base64, "base64"));
+        this.pendingImages.push({ data: base64, mimeType: item.type, path: tmpPath });
         this.updateImagePreview();
-        klog(this.plugin.settings, "Image pasted:", item.type, base64.length, "bytes");
+        klog(this.plugin.settings, "Image saved to:", tmpPath);
       };
       reader.readAsDataURL(blob);
     }
@@ -229,17 +232,14 @@ export class KiroChatView extends ItemView {
       }
     }
 
-    // Add pending images before text so Kiro sees them
+    // Append image file paths to text so Kiro can read them with imageRead
+    let fullText = text;
     for (const img of this.pendingImages) {
-      promptContent.push({ type: "image", data: img.data, mimeType: img.mimeType } as Record<string, unknown>);
+      fullText += `\n[Attached image: ${img.path}]`;
     }
 
-    this.messages.push({ role: "user", content: text });
-    promptContent.push({ type: "text", text });
-    const hadImages = this.pendingImages.length > 0;
-    if (hadImages) {
-      this.messages[this.messages.length - 1].content += ` 🖼️ (${this.pendingImages.length} image${this.pendingImages.length > 1 ? "s" : ""})`;
-    }
+    this.messages.push({ role: "user", content: text + (this.pendingImages.length ? ` 🖼️` : "") });
+    promptContent.push({ type: "text", text: fullText });
     this.pendingImages = [];
     this.updateImagePreview();
 
