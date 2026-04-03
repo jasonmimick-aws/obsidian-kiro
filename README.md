@@ -6,6 +6,8 @@ Query Dynatrace, manage AWS, create dashboards — all from your notes.
 
 ![Kiro for Obsidian](https://img.shields.io/badge/Kiro-Obsidian%20Plugin-9046FF)
 
+![Kiro for Obsidian](docs/assets/kiro-obsidian-screenshot.png)
+
 ## Features
 
 - **Chat with Kiro** — full streaming chat panel in the Obsidian sidebar
