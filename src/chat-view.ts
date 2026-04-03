@@ -17,7 +17,9 @@ export class KiroChatView extends ItemView {
   private inputEl!: HTMLTextAreaElement;
   private messagesEl!: HTMLDivElement;
   private statusEl!: HTMLDivElement;
+  private contextEl!: HTMLDivElement;
   private sendBtn!: HTMLButtonElement;
+  private cancelBtn!: HTMLButtonElement;
   private currentAssistantMsg = "";
   private isStreaming = false;
 
@@ -38,10 +40,27 @@ export class KiroChatView extends ItemView {
     container.empty();
     container.addClass("kiro-chat-container");
 
-    this.statusEl = container.createDiv({ cls: "kiro-status" });
-    this.statusEl.setText("Starting Kiro...");
+    // Header bar
+    const header = container.createDiv({ cls: "kiro-header" });
+    this.statusEl = header.createDiv({ cls: "kiro-status" });
+    this.statusEl.setText("Starting...");
+    const headerBtns = header.createDiv({ cls: "kiro-header-btns" });
+    this.cancelBtn = headerBtns.createEl("button", { cls: "kiro-header-btn", text: "⏹ Stop", attr: { title: "Cancel current request" } });
+    this.cancelBtn.addEventListener("click", () => this.cancelStream());
+    this.cancelBtn.style.display = "none";
+    const restartBtn = headerBtns.createEl("button", { cls: "kiro-header-btn", text: "↻ Restart", attr: { title: "Restart Kiro agent" } });
+    restartBtn.addEventListener("click", () => this.restart());
+    const clearBtn = headerBtns.createEl("button", { cls: "kiro-header-btn", text: "🗑 Clear", attr: { title: "Clear chat history" } });
+    clearBtn.addEventListener("click", () => { this.messages = []; this.renderMessages(); });
 
     this.messagesEl = container.createDiv({ cls: "kiro-messages" });
+
+    // Context bar - shows what note is attached
+    this.contextEl = container.createDiv({ cls: "kiro-context-bar" });
+    this.updateContextBar();
+
+    // Listen for active file changes
+    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.updateContextBar()));
 
     const inputRow = container.createDiv({ cls: "kiro-input-row" });
     this.inputEl = inputRow.createEl("textarea", {
@@ -49,14 +68,25 @@ export class KiroChatView extends ItemView {
       attr: { placeholder: "Ask Kiro anything... Use @NoteName to include a note", rows: "2" },
     });
     this.sendBtn = inputRow.createEl("button", { cls: "kiro-send-btn", text: "Send" });
-    this.sendBtn.addEventListener("click", () => this.onSendClick());
+    this.sendBtn.addEventListener("click", () => this.sendMessage());
     this.inputEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        this.onSendClick();
+        this.sendMessage();
       }
     });
 
+    await this.connectAgent();
+  }
+
+  async onClose() {
+    this.client.stop();
+  }
+
+  private async connectAgent() {
+    this.statusEl.setText("Starting...");
+    this.statusEl.removeClass("kiro-status-connected");
+    this.statusEl.removeClass("kiro-status-error");
     try {
       await this.client.start();
       await this.client.initialize();
@@ -68,40 +98,57 @@ export class KiroChatView extends ItemView {
       this.inputEl.focus();
     } catch (e) {
       console.error("[Kiro] Failed to start:", e);
-      this.statusEl.setText(`Failed to start: ${e}`);
+      this.statusEl.setText(`Failed: ${e}`);
       this.statusEl.addClass("kiro-status-error");
     }
   }
 
-  async onClose() {
+  private async restart() {
     this.client.stop();
+    this.client = new AcpClient(this.plugin.settings.kiroPath, this.plugin.settings);
+    this.client.setUpdateHandler((msg) => this.handleUpdate(msg));
+    this.isStreaming = false;
+    this.currentAssistantMsg = "";
+    this.cancelBtn.style.display = "none";
+    await this.connectAgent();
   }
 
-  private async onSendClick() {
-    if (this.isStreaming) {
-      // Cancel
-      this.client.cancel();
-      this.isStreaming = false;
-      this.sendBtn.setText("Send");
-      this.statusEl.setText("Cancelled");
-      if (this.currentAssistantMsg) {
-        this.messages.push({ role: "assistant", content: this.currentAssistantMsg + "\n\n*(cancelled)*" });
-        this.currentAssistantMsg = "";
-      }
-      this.renderMessages();
+  private cancelStream() {
+    if (!this.isStreaming) return;
+    this.client.cancel();
+    this.isStreaming = false;
+    this.cancelBtn.style.display = "none";
+    this.statusEl.setText("Cancelled");
+    if (this.currentAssistantMsg) {
+      this.messages.push({ role: "assistant", content: this.currentAssistantMsg + "\n\n*(cancelled)*" });
+      this.currentAssistantMsg = "";
+    }
+    this.renderMessages();
+  }
+
+  private updateContextBar() {
+    this.contextEl.empty();
+    if (!this.plugin.settings.autoIncludeActiveNote) {
+      this.contextEl.style.display = "none";
       return;
     }
-    await this.sendMessage();
+    const file = this.app.workspace.getActiveFile();
+    if (file && file.extension === "md") {
+      this.contextEl.style.display = "flex";
+      this.contextEl.setText(`📎 ${file.basename}`);
+    } else {
+      this.contextEl.style.display = "none";
+    }
   }
 
   private async sendMessage() {
     const text = this.inputEl.value.trim();
-    if (!text) return;
+    if (!text || this.isStreaming) return;
 
     this.inputEl.value = "";
     this.currentAssistantMsg = "";
     this.isStreaming = true;
-    this.sendBtn.setText("Stop");
+    this.cancelBtn.style.display = "";
     this.statusEl.setText("Thinking...");
 
     // Build prompt content
@@ -120,6 +167,10 @@ export class KiroChatView extends ItemView {
       });
     }
 
+    // Build display text showing context
+    const contextNames: string[] = [];
+    for (const note of mentionedNotes) contextNames.push(`@${note.title}`);
+
     // Auto-include active note if enabled and no @mentions
     if (this.plugin.settings.autoIncludeActiveNote && mentionedNotes.length === 0) {
       const activeNote = await this.plugin.readActiveNote();
@@ -132,11 +183,13 @@ export class KiroChatView extends ItemView {
             text: activeNote.content,
           },
         });
+        contextNames.push(`📎 ${activeNote.title}`);
       }
     }
 
-    // Clean @mentions from display text
-    const displayText = text.replace(/@"[^"]+"/g, (m) => m).trim();
+    const displayText = contextNames.length > 0
+      ? `${text}\n\n*Context: ${contextNames.join(", ")}*`
+      : text;
     this.messages.push({ role: "user", content: displayText });
     promptContent.push({ type: "text", text });
 
@@ -157,7 +210,7 @@ export class KiroChatView extends ItemView {
     }
 
     this.isStreaming = false;
-    this.sendBtn.setText("Send");
+    this.cancelBtn.style.display = "none";
     this.statusEl.setText("Connected");
     this.renderMessages();
   }
