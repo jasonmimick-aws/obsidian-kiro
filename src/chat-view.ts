@@ -1,5 +1,7 @@
 import { ItemView, WorkspaceLeaf, MarkdownRenderer } from "obsidian";
 import { AcpClient, AcpMessage } from "./acp-client";
+import type KiroPlugin from "./main";
+import { klog } from "./main";
 
 export const KIRO_VIEW_TYPE = "kiro-chat";
 
@@ -10,16 +12,19 @@ interface ChatMessage {
 
 export class KiroChatView extends ItemView {
   private client: AcpClient;
+  private plugin: KiroPlugin;
   private messages: ChatMessage[] = [];
   private inputEl!: HTMLTextAreaElement;
   private messagesEl!: HTMLDivElement;
   private statusEl!: HTMLDivElement;
+  private sendBtn!: HTMLButtonElement;
   private currentAssistantMsg = "";
   private isStreaming = false;
 
-  constructor(leaf: WorkspaceLeaf, private kiroPath: string) {
+  constructor(leaf: WorkspaceLeaf, plugin: KiroPlugin) {
     super(leaf);
-    this.client = new AcpClient(kiroPath);
+    this.plugin = plugin;
+    this.client = new AcpClient(plugin.settings.kiroPath, plugin.settings);
     this.client.setUpdateHandler((msg) => this.handleUpdate(msg));
   }
 
@@ -28,7 +33,7 @@ export class KiroChatView extends ItemView {
   getIcon(): string { return "bot"; }
 
   async onOpen() {
-    console.log("[Kiro] ChatView onOpen called");
+    klog(this.plugin.settings, "ChatView onOpen");
     const container = this.containerEl.children[1] as HTMLElement;
     container.empty();
     container.addClass("kiro-chat-container");
@@ -41,40 +46,23 @@ export class KiroChatView extends ItemView {
     const inputRow = container.createDiv({ cls: "kiro-input-row" });
     this.inputEl = inputRow.createEl("textarea", {
       cls: "kiro-input",
-      attr: { placeholder: "Ask Kiro anything...", rows: "2" },
+      attr: { placeholder: "Ask Kiro anything... Use @NoteName to include a note", rows: "2" },
     });
-    const sendBtn = inputRow.createEl("button", { cls: "kiro-send-btn", text: "Send" });
-    sendBtn.addEventListener("click", () => this.sendMessage());
+    this.sendBtn = inputRow.createEl("button", { cls: "kiro-send-btn", text: "Send" });
+    this.sendBtn.addEventListener("click", () => this.onSendClick());
     this.inputEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        this.sendMessage();
+        this.onSendClick();
       }
     });
 
     try {
-      console.log("[Kiro] Starting ACP client...");
       await this.client.start();
-      console.log("[Kiro] ACP process started, initializing...");
       await this.client.initialize();
-      console.log("[Kiro] Initialized, creating session...");
       const vaultPath = (this.app.vault.adapter as any).basePath || "/";
-      console.log("[Kiro] Using vault path as cwd:", vaultPath);
-      
-      // Poll buffer every 2s to see if data is stuck
-      const pollInterval = setInterval(() => {
-        if (this.client.getBuffer().length > 0) {
-          console.log("[Kiro] Buffer poll:", JSON.stringify(this.client.getBuffer()).substring(0, 500));
-        }
-      }, 2000);
-      
-      try {
-        await this.client.newSession(vaultPath);
-        console.log("[Kiro] Session created, ready!");
-      } finally {
-        clearInterval(pollInterval);
-      }
-      console.log("[Kiro] Session created, ready!");
+      klog(this.plugin.settings, "cwd:", vaultPath);
+      await this.client.newSession(vaultPath);
       this.statusEl.setText("Connected");
       this.statusEl.addClass("kiro-status-connected");
       this.inputEl.focus();
@@ -89,31 +77,105 @@ export class KiroChatView extends ItemView {
     this.client.stop();
   }
 
+  private async onSendClick() {
+    if (this.isStreaming) {
+      // Cancel
+      this.client.cancel();
+      this.isStreaming = false;
+      this.sendBtn.setText("Send");
+      this.statusEl.setText("Cancelled");
+      if (this.currentAssistantMsg) {
+        this.messages.push({ role: "assistant", content: this.currentAssistantMsg + "\n\n*(cancelled)*" });
+        this.currentAssistantMsg = "";
+      }
+      this.renderMessages();
+      return;
+    }
+    await this.sendMessage();
+  }
+
   private async sendMessage() {
     const text = this.inputEl.value.trim();
-    if (!text || this.isStreaming) return;
+    if (!text) return;
 
     this.inputEl.value = "";
-    this.messages.push({ role: "user", content: text });
     this.currentAssistantMsg = "";
     this.isStreaming = true;
+    this.sendBtn.setText("Stop");
     this.statusEl.setText("Thinking...");
+
+    // Build prompt content
+    const promptContent: Array<Record<string, unknown>> = [];
+
+    // Resolve @mentions
+    const mentionedNotes = await this.resolveMentions(text);
+    for (const note of mentionedNotes) {
+      promptContent.push({
+        type: "resource",
+        resource: {
+          uri: `file:///${note.title}.md`,
+          mimeType: "text/markdown",
+          text: note.content,
+        },
+      });
+    }
+
+    // Auto-include active note if enabled and no @mentions
+    if (this.plugin.settings.autoIncludeActiveNote && mentionedNotes.length === 0) {
+      const activeNote = await this.plugin.readActiveNote();
+      if (activeNote) {
+        promptContent.push({
+          type: "resource",
+          resource: {
+            uri: `file:///${activeNote.title}.md`,
+            mimeType: "text/markdown",
+            text: activeNote.content,
+          },
+        });
+      }
+    }
+
+    // Clean @mentions from display text
+    const displayText = text.replace(/@"[^"]+"/g, (m) => m).trim();
+    this.messages.push({ role: "user", content: displayText });
+    promptContent.push({ type: "text", text });
+
     this.renderMessages();
 
     try {
-      await this.client.prompt(text);
-      // Response received — finalize the message
+      await this.client.prompt(promptContent);
       if (this.currentAssistantMsg) {
         this.messages.push({ role: "assistant", content: this.currentAssistantMsg });
         this.currentAssistantMsg = "";
       }
     } catch (e) {
-      this.messages.push({ role: "assistant", content: `Error: ${e}` });
+      if (String(e).includes("timed out")) {
+        this.messages.push({ role: "assistant", content: "Request timed out. Try again." });
+      } else {
+        this.messages.push({ role: "assistant", content: `Error: ${e}` });
+      }
     }
 
     this.isStreaming = false;
+    this.sendBtn.setText("Send");
     this.statusEl.setText("Connected");
     this.renderMessages();
+  }
+
+  private async resolveMentions(text: string): Promise<Array<{ title: string; content: string }>> {
+    const mentions: Array<{ title: string; content: string }> = [];
+    // Match @"Note Name" or @NoteName (no spaces)
+    const regex = /@"([^"]+)"|@(\S+)/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const name = match[1] || match[2];
+      const content = await this.plugin.readNoteByName(name);
+      if (content) {
+        mentions.push({ title: name, content });
+        klog(this.plugin.settings, "Resolved @mention:", name);
+      }
+    }
+    return mentions;
   }
 
   private handleUpdate(msg: AcpMessage) {
@@ -129,20 +191,24 @@ export class KiroChatView extends ItemView {
           this.currentAssistantMsg += content.text as string;
           this.renderMessages();
         }
-      }
-    }
-
-    // Handle end_turn response
-    if (msg.id !== undefined && msg.result) {
-      const result = msg.result as Record<string, unknown>;
-      if (result.stopReason === "end_turn") {
-        if (this.currentAssistantMsg) {
-          this.messages.push({ role: "assistant", content: this.currentAssistantMsg });
-          this.currentAssistantMsg = "";
-        }
-        this.isStreaming = false;
-        this.statusEl.setText("Connected");
+      } else if (type === "tool_call") {
+        const title = update.title as string || "Tool call";
+        this.currentAssistantMsg += `\n\n🔧 *${title}*\n`;
         this.renderMessages();
+      } else if (type === "tool_call_update") {
+        const status = update.status as string;
+        if (status === "completed") {
+          const content = update.content as Array<Record<string, unknown>>;
+          if (content) {
+            for (const block of content) {
+              const inner = block.content as Record<string, unknown>;
+              if (inner?.type === "text") {
+                this.currentAssistantMsg += `\n${inner.text}\n`;
+              }
+            }
+          }
+          this.renderMessages();
+        }
       }
     }
   }

@@ -1,4 +1,5 @@
 import { ChildProcess, spawn } from "child_process";
+import type { KiroSettings } from "./main";
 
 export interface AcpMessage {
   jsonrpc: "2.0";
@@ -17,7 +18,11 @@ export class AcpClient {
   private onUpdate: ((msg: AcpMessage) => void) | null = null;
   private sessionId: string | null = null;
 
-  constructor(private kiroPath: string) {}
+  constructor(private kiroPath: string, private settings: KiroSettings) {}
+
+  private log(...args: unknown[]) {
+    if (this.settings.debug) console.log("[Kiro ACP]", ...args);
+  }
 
   setUpdateHandler(handler: (msg: AcpMessage) => void) {
     this.onUpdate = handler;
@@ -25,6 +30,7 @@ export class AcpClient {
 
   start(): Promise<void> {
     return new Promise((resolve, reject) => {
+      this.log("Spawning:", this.kiroPath, "acp --trust-all-tools");
       this.process = spawn(this.kiroPath, ["acp", "--trust-all-tools"], {
         stdio: ["pipe", "pipe", "pipe"],
         env: { ...process.env },
@@ -32,18 +38,21 @@ export class AcpClient {
 
       this.process.stdout?.on("data", (chunk: Buffer) => {
         const raw = chunk.toString();
-        console.log("[Kiro ACP] raw chunk:", JSON.stringify(raw).substring(0, 500));
+        this.log("raw chunk:", JSON.stringify(raw).substring(0, 500));
         this.buffer += raw;
         this.processBuffer();
       });
 
       this.process.stderr?.on("data", (chunk: Buffer) => {
-        console.debug("[kiro stderr]", chunk.toString().trim());
+        this.log("stderr:", chunk.toString().trim());
       });
 
-      this.process.on("error", (err) => reject(err));
+      this.process.on("error", (err) => {
+        console.error("[Kiro ACP] process error:", err);
+        reject(err);
+      });
       this.process.on("close", (code) => {
-        console.log("[Kiro ACP] process closed with code:", code);
+        this.log("process closed, code:", code);
         this.process = null;
       });
 
@@ -60,7 +69,7 @@ export class AcpClient {
       if (!trimmed) continue;
       try {
         const msg: AcpMessage = JSON.parse(trimmed);
-        console.log("[Kiro ACP] ←", JSON.stringify(msg).substring(0, 300));
+        this.log("←", JSON.stringify(msg).substring(0, 300));
         if (msg.id !== undefined && this.pending.has(msg.id)) {
           const p = this.pending.get(msg.id)!;
           this.pending.delete(msg.id);
@@ -70,7 +79,7 @@ export class AcpClient {
           this.onUpdate(msg);
         }
       } catch {
-        console.log("[Kiro ACP] non-JSON line:", trimmed.substring(0, 200));
+        this.log("non-JSON:", trimmed.substring(0, 200));
       }
     }
   }
@@ -79,25 +88,24 @@ export class AcpClient {
     if (!this.process?.stdin) throw new Error("Kiro not running");
     const id = this.nextId++;
     const msg = JSON.stringify({ jsonrpc: "2.0", id, method, params });
-    console.log("[Kiro ACP] →", msg.substring(0, 300));
+    this.log("→", msg.substring(0, 300));
     this.process.stdin.write(msg + "\n");
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
       setTimeout(() => {
         if (this.pending.has(id)) {
-          console.log("[Kiro ACP] TIMEOUT waiting for id:", id, "pending:", [...this.pending.keys()]);
-          console.log("[Kiro ACP] buffer remainder:", JSON.stringify(this.buffer).substring(0, 500));
+          this.log("TIMEOUT id:", id, "buffer:", JSON.stringify(this.buffer).substring(0, 300));
           this.pending.delete(id);
           reject(new Error("Request timed out"));
         }
-      }, 30000);
+      }, 120000);
     });
   }
 
   async initialize(): Promise<unknown> {
     return this.send("initialize", {
       protocolVersion: "2025-01-01",
-      clientInfo: { name: "obsidian-kiro", version: "0.1.0" },
+      clientInfo: { name: "obsidian-kiro", version: "0.2.0" },
       capabilities: { loadSession: false, promptCapabilities: { image: false } },
     });
   }
@@ -105,19 +113,21 @@ export class AcpClient {
   async newSession(cwd: string): Promise<unknown> {
     const result = await this.send("session/new", { cwd, mcpServers: [] }) as Record<string, unknown>;
     this.sessionId = result?.sessionId as string || null;
-    console.log("[Kiro ACP] sessionId:", this.sessionId);
+    this.log("sessionId:", this.sessionId);
     return result;
   }
 
-  async prompt(text: string): Promise<unknown> {
+  async prompt(content: Array<Record<string, unknown>>): Promise<unknown> {
     return this.send("session/prompt", {
       sessionId: this.sessionId,
-      prompt: [{ type: "text", text }],
+      prompt: content,
     });
   }
 
   async cancel(): Promise<void> {
-    await this.send("session/cancel", { sessionId: this.sessionId });
+    if (this.sessionId) {
+      await this.send("session/cancel", { sessionId: this.sessionId });
+    }
   }
 
   stop() {
@@ -127,9 +137,5 @@ export class AcpClient {
 
   get isRunning(): boolean {
     return this.process !== null;
-  }
-
-  getBuffer(): string {
-    return this.buffer;
   }
 }
