@@ -21,14 +21,30 @@ Query Dynatrace, manage AWS, create dashboards — all from your notes.
 
 ## Install
 
-1. Clone this repo into your vault's `.obsidian/plugins/` directory:
-   ```bash
-   cd /path/to/your-vault/.obsidian/plugins
-   git clone https://github.com/jasonmimick-aws/obsidian-kiro.git
-   cd obsidian-kiro
-   npm install && npm run build
-   ```
-2. Enable "Kiro" in Settings → Community Plugins
+### BRAT (recommended for beta testing)
+
+1. Install [BRAT](https://github.com/TfTHacker/obsidian42-brat) from Obsidian community plugins
+2. Cmd+P → "BRAT: Add a beta plugin for testing"
+3. Paste `jasonmimick-aws/obsidian-kiro` → Add Plugin
+4. Settings → Community Plugins → toggle on "Kiro"
+
+BRAT auto-updates when new releases are published.
+
+### Manual install
+
+1. Download `main.js`, `manifest.json`, `styles.css` from the [latest release](https://github.com/jasonmimick-aws/obsidian-kiro/releases)
+2. Create `.obsidian/plugins/obsidian-kiro/` in your vault
+3. Copy the three files into that folder
+4. Settings → Community Plugins → toggle on "Kiro"
+
+### Build from source
+
+```bash
+git clone https://github.com/jasonmimick-aws/obsidian-kiro.git
+cd obsidian-kiro
+npm install && npm run build
+cp main.js manifest.json styles.css /path/to/vault/.obsidian/plugins/obsidian-kiro/
+```
 
 ## Requirements
 
