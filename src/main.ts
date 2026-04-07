@@ -87,7 +87,8 @@ export default class KiroPlugin extends Plugin {
 
   async readNoteByName(name: string): Promise<string | null> {
     const file = this.app.vault.getMarkdownFiles().find(
-      (f) => f.basename.toLowerCase() === name.toLowerCase()
+      (f) => f.basename.toLowerCase() === name.toLowerCase() &&
+        !f.path.startsWith("node_modules/") && !f.path.startsWith(".obsidian/")
     );
     if (!file) return null;
     return this.app.vault.read(file);

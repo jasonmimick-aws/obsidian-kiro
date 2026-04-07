@@ -2,7 +2,7 @@
 
 Use [Kiro CLI](https://kiro.dev) as an AI agent inside [Obsidian](https://obsidian.md) via the [Agent Client Protocol (ACP)](https://agentclientprotocol.com/).
 
-Query Dynatrace, manage AWS, create dashboards — all from your notes.
+Meet your cloud infrastructure where you already work. Query, manage, and visualize AWS and partner services directly from Obsidian — your notes become your control plane.
 
 ![Kiro for Obsidian](https://img.shields.io/badge/Kiro-Obsidian%20Plugin-9046FF)
 

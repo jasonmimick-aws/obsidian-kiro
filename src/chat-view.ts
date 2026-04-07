@@ -291,7 +291,9 @@ export class KiroChatView extends ItemView {
       if (type === "agent_message_chunk") {
         const content = update.content as Record<string, unknown>;
         if (content?.type === "text") {
-          this.currentAssistantMsg += content.text as string;
+          const text = content.text as string;
+          if (text.trim().length === 0) return;
+          this.currentAssistantMsg += text;
           this.renderMessages();
         }
       } else if (type === "tool_call") {

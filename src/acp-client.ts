@@ -84,7 +84,7 @@ export class AcpClient {
     }
   }
 
-  async send(method: string, params?: Record<string, unknown>): Promise<unknown> {
+  async send(method: string, params?: Record<string, unknown>, timeout = 120000): Promise<unknown> {
     if (!this.process?.stdin) throw new Error("Kiro not running");
     const id = this.nextId++;
     const msg = JSON.stringify({ jsonrpc: "2.0", id, method, params });
@@ -98,7 +98,7 @@ export class AcpClient {
           this.pending.delete(id);
           reject(new Error("Request timed out"));
         }
-      }, 120000);
+      }, timeout);
     });
   }
 
@@ -111,7 +111,7 @@ export class AcpClient {
   }
 
   async newSession(cwd: string): Promise<unknown> {
-    const result = await this.send("session/new", { cwd, mcpServers: [] }) as Record<string, unknown>;
+    const result = await this.send("session/new", { cwd, mcpServers: [] }, 300000) as Record<string, unknown>;
     this.sessionId = result?.sessionId as string || null;
     this.log("sessionId:", this.sessionId);
     return result;
